@@ -722,7 +722,7 @@ func TestConn_CoordinatorRollingRestart(t *testing.T) {
 			})
 			client2.SetSessionToken(client1.SessionToken())
 
-			workspace := dbfake.WorkspaceBuild(t, store, database.Workspace{
+			workspace := dbfake.WorkspaceBuild(t, store, database.WorkspaceTable{
 				OrganizationID: user.OrganizationID,
 				OwnerID:        user.UserID,
 			}).WithAgent().Do()
