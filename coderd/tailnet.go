@@ -76,7 +76,7 @@ func NewServerTailnet(
 	// given in this callback, it's only valid while connecting.
 	if derpServer != nil {
 		conn.SetDERPRegionDialer(func(_ context.Context, region *tailcfg.DERPRegion) net.Conn {
-			if !region.EmbeddedRelay {
+			if !region.EmbeddedRelay || ctx.Err() != nil {
 				return nil
 			}
 			logger.Debug(ctx, "connecting to embedded DERP via in-memory pipe")
