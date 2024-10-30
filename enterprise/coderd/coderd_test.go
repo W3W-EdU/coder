@@ -677,8 +677,8 @@ func TestConn_CoordinatorRollingRestart(t *testing.T) {
 	//
 	// Direct connections should be able to transmit packets throughout the
 	// restart without issue.
+	//nolint:paralleltest // Outdated rule
 	for _, direct := range []bool{true, false} {
-		direct := direct
 		name := "DERP"
 		if direct {
 			name = "Direct"

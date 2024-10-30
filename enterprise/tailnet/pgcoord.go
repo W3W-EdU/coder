@@ -506,8 +506,7 @@ func newBinder(ctx context.Context,
 
 		b.logger.Debug(b.ctx, "updating peers to lost")
 
-		//nolint:gocritic // provisioner is system
-		ctx, cancel := context.WithTimeout(dbauthz.AsSystemRestricted(context.Background()), time.Second*15)
+		ctx, cancel := context.WithTimeout(dbauthz.As(context.Background(), pgCoordSubject), time.Second*15)
 		defer cancel()
 		err := b.store.UpdateTailnetPeerStatusByCoordinator(ctx, database.UpdateTailnetPeerStatusByCoordinatorParams{
 			CoordinatorID: b.coordinatorID,
