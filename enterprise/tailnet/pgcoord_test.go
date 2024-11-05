@@ -82,11 +82,11 @@ func TestPGCoordinatorSingle_AgentWithoutClients(t *testing.T) {
 	require.NoError(t, err)
 	defer coordinator.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coordinator, "agent")
-	defer agent1.Close(ctx)
-	agent1.UpdateDERP(10)
+	agent := agpltest.NewAgent(ctx, t, coordinator, "agent")
+	defer agent.Close(ctx)
+	agent.UpdateDERP(10)
 	require.Eventually(t, func() bool {
-		agents, err := store.GetTailnetPeers(ctx, agent1.ID)
+		agents, err := store.GetTailnetPeers(ctx, agent.ID)
 		if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
 			t.Fatalf("database error: %v", err)
 		}
@@ -99,8 +99,8 @@ func TestPGCoordinatorSingle_AgentWithoutClients(t *testing.T) {
 		assert.EqualValues(t, 10, node.PreferredDerp)
 		return true
 	}, testutil.WaitShort, testutil.IntervalFast)
-	agent1.UngracefulDisconnect(ctx)
-	assertEventuallyLost(ctx, t, store, agent1.ID)
+	agent.UngracefulDisconnect(ctx)
+	assertEventuallyLost(ctx, t, store, agent.ID)
 }
 
 func TestPGCoordinatorSingle_AgentInvalidIP(t *testing.T) {
@@ -116,9 +116,9 @@ func TestPGCoordinatorSingle_AgentInvalidIP(t *testing.T) {
 	require.NoError(t, err)
 	defer coordinator.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coordinator, "agent")
-	defer agent1.Close(ctx)
-	agent1.UpdateNode(&proto.Node{
+	agent := agpltest.NewAgent(ctx, t, coordinator, "agent")
+	defer agent.Close(ctx)
+	agent.UpdateNode(&proto.Node{
 		Addresses: []string{
 			agpl.TailscaleServicePrefix.RandomPrefix().String(),
 		},
@@ -126,8 +126,8 @@ func TestPGCoordinatorSingle_AgentInvalidIP(t *testing.T) {
 	})
 
 	// The agent connection should be closed immediately after sending an invalid addr
-	agent1.AssertEventuallyResponsesClosed()
-	assertEventuallyLost(ctx, t, store, agent1.ID)
+	agent.AssertEventuallyResponsesClosed()
+	assertEventuallyLost(ctx, t, store, agent.ID)
 }
 
 func TestPGCoordinatorSingle_AgentInvalidIPBits(t *testing.T) {
@@ -143,18 +143,18 @@ func TestPGCoordinatorSingle_AgentInvalidIPBits(t *testing.T) {
 	require.NoError(t, err)
 	defer coordinator.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coordinator, "agent")
-	defer agent1.Close(ctx)
-	agent1.UpdateNode(&proto.Node{
+	agent := agpltest.NewAgent(ctx, t, coordinator, "agent")
+	defer agent.Close(ctx)
+	agent.UpdateNode(&proto.Node{
 		Addresses: []string{
-			netip.PrefixFrom(agpl.TailscaleServicePrefix.AddrFromUUID(agent1.ID), 64).String(),
+			netip.PrefixFrom(agpl.TailscaleServicePrefix.AddrFromUUID(agent.ID), 64).String(),
 		},
 		PreferredDerp: 10,
 	})
 
 	// The agent connection should be closed immediately after sending an invalid addr
-	agent1.AssertEventuallyResponsesClosed()
-	assertEventuallyLost(ctx, t, store, agent1.ID)
+	agent.AssertEventuallyResponsesClosed()
+	assertEventuallyLost(ctx, t, store, agent.ID)
 }
 
 func TestPGCoordinatorSingle_AgentValidIP(t *testing.T) {
@@ -170,16 +170,16 @@ func TestPGCoordinatorSingle_AgentValidIP(t *testing.T) {
 	require.NoError(t, err)
 	defer coordinator.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coordinator, "agent")
-	defer agent1.Close(ctx)
-	agent1.UpdateNode(&proto.Node{
+	agent := agpltest.NewAgent(ctx, t, coordinator, "agent")
+	defer agent.Close(ctx)
+	agent.UpdateNode(&proto.Node{
 		Addresses: []string{
-			agpl.TailscaleServicePrefix.PrefixFromUUID(agent1.ID).String(),
+			agpl.TailscaleServicePrefix.PrefixFromUUID(agent.ID).String(),
 		},
 		PreferredDerp: 10,
 	})
 	require.Eventually(t, func() bool {
-		agents, err := store.GetTailnetPeers(ctx, agent1.ID)
+		agents, err := store.GetTailnetPeers(ctx, agent.ID)
 		if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
 			t.Fatalf("database error: %v", err)
 		}
@@ -192,8 +192,8 @@ func TestPGCoordinatorSingle_AgentValidIP(t *testing.T) {
 		assert.EqualValues(t, 10, node.PreferredDerp)
 		return true
 	}, testutil.WaitShort, testutil.IntervalFast)
-	agent1.UngracefulDisconnect(ctx)
-	assertEventuallyLost(ctx, t, store, agent1.ID)
+	agent.UngracefulDisconnect(ctx)
+	assertEventuallyLost(ctx, t, store, agent.ID)
 }
 
 func TestPGCoordinatorSingle_AgentWithClient(t *testing.T) {
@@ -209,39 +209,39 @@ func TestPGCoordinatorSingle_AgentWithClient(t *testing.T) {
 	require.NoError(t, err)
 	defer coordinator.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coordinator, "original")
-	defer agent1.Close(ctx)
-	agent1.UpdateDERP(10)
+	agent := agpltest.NewAgent(ctx, t, coordinator, "original")
+	defer agent.Close(ctx)
+	agent.UpdateDERP(10)
 
-	client := agpltest.NewClient(ctx, t, coordinator, "client", agent1.ID)
+	client := agpltest.NewClient(ctx, t, coordinator, "client", agent.ID)
 	defer client.Close(ctx)
 
-	client.AssertEventuallyHasDERP(agent1.ID, 10)
+	client.AssertEventuallyHasDERP(agent.ID, 10)
 	client.UpdateDERP(11)
-	agent1.AssertEventuallyHasDERP(client.ID, 11)
+	agent.AssertEventuallyHasDERP(client.ID, 11)
 
 	// Ensure an update to the agent node reaches the connIO!
-	agent1.UpdateDERP(12)
-	client.AssertEventuallyHasDERP(agent1.ID, 12)
+	agent.UpdateDERP(12)
+	client.AssertEventuallyHasDERP(agent.ID, 12)
 
 	// Close the agent channel so a new one can connect.
-	agent1.Close(ctx)
+	agent.Close(ctx)
 
 	// Create a new agent connection. This is to simulate a reconnect!
-	agent1 = agpltest.NewPeer(ctx, t, coordinator, "reconnection", agpltest.WithID(agent1.ID))
+	agent = agpltest.NewPeer(ctx, t, coordinator, "reconnection", agpltest.WithID(agent.ID))
 	// Ensure the coordinator sends its client node immediately!
-	agent1.AssertEventuallyHasDERP(client.ID, 11)
+	agent.AssertEventuallyHasDERP(client.ID, 11)
 
 	// Send a bunch of updates in rapid succession, and test that we eventually get the latest.  We don't want the
 	// coordinator accidentally reordering things.
 	for d := int32(13); d < 36; d++ {
-		agent1.UpdateDERP(d)
+		agent.UpdateDERP(d)
 	}
-	client.AssertEventuallyHasDERP(agent1.ID, 35)
+	client.AssertEventuallyHasDERP(agent.ID, 35)
 
-	agent1.UngracefulDisconnect(ctx)
+	agent.UngracefulDisconnect(ctx)
 	client.UngracefulDisconnect(ctx)
-	assertEventuallyLost(ctx, t, store, agent1.ID)
+	assertEventuallyLost(ctx, t, store, agent.ID)
 	assertEventuallyLost(ctx, t, store, client.ID)
 }
 
@@ -264,16 +264,16 @@ func TestPGCoordinatorSingle_MissedHeartbeats(t *testing.T) {
 	require.NoError(t, err)
 	defer coordinator.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coordinator, "agent")
-	defer agent1.Close(ctx)
-	agent1.UpdateDERP(10)
+	agent := agpltest.NewAgent(ctx, t, coordinator, "agent")
+	defer agent.Close(ctx)
+	agent.UpdateDERP(10)
 
-	client := agpltest.NewClient(ctx, t, coordinator, "client", agent1.ID)
+	client := agpltest.NewClient(ctx, t, coordinator, "client", agent.ID)
 	defer client.Close(ctx)
 
-	client.AssertEventuallyHasDERP(agent1.ID, 10)
+	client.AssertEventuallyHasDERP(agent.ID, 10)
 	client.UpdateDERP(11)
-	agent1.AssertEventuallyHasDERP(client.ID, 11)
+	agent.AssertEventuallyHasDERP(client.ID, 11)
 
 	// simulate a second coordinator via DB calls only --- our goal is to test broken heart-beating, so we can't use a
 	// real coordinator
@@ -287,8 +287,8 @@ func TestPGCoordinatorSingle_MissedHeartbeats(t *testing.T) {
 	fCoord2.heartbeat()
 	afTrap.MustWait(ctx).Release() // heartbeat timeout started
 
-	fCoord2.agentNode(agent1.ID, &agpl.Node{PreferredDERP: 12})
-	client.AssertEventuallyHasDERP(agent1.ID, 12)
+	fCoord2.agentNode(agent.ID, &agpl.Node{PreferredDERP: 12})
+	client.AssertEventuallyHasDERP(agent.ID, 12)
 
 	fCoord3 := &fakeCoordinator{
 		ctx:   ctx,
@@ -298,8 +298,8 @@ func TestPGCoordinatorSingle_MissedHeartbeats(t *testing.T) {
 	}
 	fCoord3.heartbeat()
 	rstTrap.MustWait(ctx).Release() // timeout gets reset
-	fCoord3.agentNode(agent1.ID, &agpl.Node{PreferredDERP: 13})
-	client.AssertEventuallyHasDERP(agent1.ID, 13)
+	fCoord3.agentNode(agent.ID, &agpl.Node{PreferredDERP: 13})
+	client.AssertEventuallyHasDERP(agent.ID, 13)
 
 	// fCoord2 sends in a second heartbeat, one period later (on time)
 	mClock.Advance(tailnet.HeartbeatPeriod).MustWait(ctx)
@@ -312,20 +312,20 @@ func TestPGCoordinatorSingle_MissedHeartbeats(t *testing.T) {
 	w := mClock.Advance(tailnet.HeartbeatPeriod)
 	rstTrap.MustWait(ctx).Release()
 	w.MustWait(ctx)
-	client.AssertEventuallyHasDERP(agent1.ID, 12)
+	client.AssertEventuallyHasDERP(agent.ID, 12)
 
 	// one more heartbeat period will result in fCoord2 being expired, which should cause us to
 	// revert to the original agent mapping
 	mClock.Advance(tailnet.HeartbeatPeriod).MustWait(ctx)
 	// note that the timeout doesn't get reset because both fCoord2 and fCoord3 are expired
-	client.AssertEventuallyHasDERP(agent1.ID, 10)
+	client.AssertEventuallyHasDERP(agent.ID, 10)
 
 	// send fCoord3 heartbeat, which should trigger us to consider that mapping valid again.
 	fCoord3.heartbeat()
 	rstTrap.MustWait(ctx).Release() // timeout gets reset
-	client.AssertEventuallyHasDERP(agent1.ID, 13)
+	client.AssertEventuallyHasDERP(agent.ID, 13)
 
-	agent1.UngracefulDisconnect(ctx)
+	agent.UngracefulDisconnect(ctx)
 	client.UngracefulDisconnect(ctx)
 	assertEventuallyLost(ctx, t, store, client.ID)
 }
@@ -417,7 +417,7 @@ func TestPGCoordinatorSingle_SendsHeartbeats(t *testing.T) {
 // TestPGCoordinatorDual_Mainline tests with 2 coordinators, one agent connected to each, and 2 clients per agent.
 //
 //	            +---------+
-//	agent1 ---> | coord1  | <--- client11 (coord 1, agent 1)
+//	agent ---> | coord1  | <--- client11 (coord 1, agent 1)
 //	            |         |
 //	            |         | <--- client12 (coord 1, agent 2)
 //	            +---------+
@@ -442,20 +442,20 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 	require.NoError(t, err)
 	defer coord2.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coord1, "agent1")
-	defer agent1.Close(ctx)
-	t.Logf("agent1=%s", agent1.ID)
+	agent := agpltest.NewAgent(ctx, t, coord1, "agent")
+	defer agent.Close(ctx)
+	t.Logf("agent=%s", agent.ID)
 	agent2 := agpltest.NewAgent(ctx, t, coord2, "agent2")
 	defer agent2.Close(ctx)
 	t.Logf("agent2=%s", agent2.ID)
 
-	client11 := agpltest.NewClient(ctx, t, coord1, "client11", agent1.ID)
+	client11 := agpltest.NewClient(ctx, t, coord1, "client11", agent.ID)
 	defer client11.Close(ctx)
 	t.Logf("client11=%s", client11.ID)
 	client12 := agpltest.NewClient(ctx, t, coord1, "client12", agent2.ID)
 	defer client12.Close(ctx)
 	t.Logf("client12=%s", client12.ID)
-	client21 := agpltest.NewClient(ctx, t, coord2, "client21", agent1.ID)
+	client21 := agpltest.NewClient(ctx, t, coord2, "client21", agent.ID)
 	defer client21.Close(ctx)
 	t.Logf("client21=%s", client21.ID)
 	client22 := agpltest.NewClient(ctx, t, coord2, "client22", agent2.ID)
@@ -464,11 +464,11 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 
 	t.Logf("client11 -> Node 11")
 	client11.UpdateDERP(11)
-	agent1.AssertEventuallyHasDERP(client11.ID, 11)
+	agent.AssertEventuallyHasDERP(client11.ID, 11)
 
 	t.Logf("client21 -> Node 21")
 	client21.UpdateDERP(21)
-	agent1.AssertEventuallyHasDERP(client21.ID, 21)
+	agent.AssertEventuallyHasDERP(client21.ID, 21)
 
 	t.Logf("client22 -> Node 22")
 	client22.UpdateDERP(22)
@@ -483,10 +483,10 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 	client12.UpdateDERP(12)
 	agent2.AssertEventuallyHasDERP(client12.ID, 12)
 
-	t.Logf("agent1 -> Node 1")
-	agent1.UpdateDERP(1)
-	client21.AssertEventuallyHasDERP(agent1.ID, 1)
-	client11.AssertEventuallyHasDERP(agent1.ID, 1)
+	t.Logf("agent -> Node 1")
+	agent.UpdateDERP(1)
+	client21.AssertEventuallyHasDERP(agent.ID, 1)
+	client11.AssertEventuallyHasDERP(agent.ID, 1)
 
 	t.Logf("close coord2")
 	err = coord2.Close()
@@ -502,11 +502,11 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 
 	err = coord1.Close()
 	require.NoError(t, err)
-	// this closes agent1, client12, client11
-	agent1.AssertEventuallyResponsesClosed()
+	// this closes agent, client12, client11
+	agent.AssertEventuallyResponsesClosed()
 	client12.AssertEventuallyResponsesClosed()
 	client11.AssertEventuallyResponsesClosed()
-	assertEventuallyLost(ctx, t, store, agent1.ID)
+	assertEventuallyLost(ctx, t, store, agent.ID)
 	assertEventuallyLost(ctx, t, store, client11.ID)
 	assertEventuallyLost(ctx, t, store, client12.ID)
 }
@@ -516,7 +516,7 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 // or an infrastructure problem where an old workspace is not fully cleaned up before a new one started.
 //
 //	            +---------+
-//	agent1 ---> | coord1  |
+//	agent ---> | coord1  |
 //	            +---------+
 //	            +---------+
 //	agent2 ---> | coord2  |
@@ -543,42 +543,42 @@ func TestPGCoordinator_MultiCoordinatorAgent(t *testing.T) {
 	require.NoError(t, err)
 	defer coord3.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coord1, "agent1")
-	defer agent1.Close(ctx)
+	agent := agpltest.NewAgent(ctx, t, coord1, "agent")
+	defer agent.Close(ctx)
 	agent2 := agpltest.NewPeer(ctx, t, coord2, "agent2",
-		agpltest.WithID(agent1.ID), agpltest.WithAuth(agpl.AgentCoordinateeAuth{ID: agent1.ID}),
+		agpltest.WithID(agent.ID), agpltest.WithAuth(agpl.AgentCoordinateeAuth{ID: agent.ID}),
 	)
 	defer agent2.Close(ctx)
 
-	client := agpltest.NewClient(ctx, t, coord3, "client", agent1.ID)
+	client := agpltest.NewClient(ctx, t, coord3, "client", agent.ID)
 	defer client.Close(ctx)
 
 	client.UpdateDERP(3)
-	agent1.AssertEventuallyHasDERP(client.ID, 3)
+	agent.AssertEventuallyHasDERP(client.ID, 3)
 	agent2.AssertEventuallyHasDERP(client.ID, 3)
 
-	agent1.UpdateDERP(1)
-	client.AssertEventuallyHasDERP(agent1.ID, 1)
+	agent.UpdateDERP(1)
+	client.AssertEventuallyHasDERP(agent.ID, 1)
 
-	// agent2's update overrides agent1 because it is newer
+	// agent2's update overrides agent because it is newer
 	agent2.UpdateDERP(2)
-	client.AssertEventuallyHasDERP(agent1.ID, 2)
+	client.AssertEventuallyHasDERP(agent.ID, 2)
 
-	// agent2 disconnects, and we should revert back to agent1
+	// agent2 disconnects, and we should revert back to agent
 	agent2.Close(ctx)
-	client.AssertEventuallyHasDERP(agent1.ID, 1)
+	client.AssertEventuallyHasDERP(agent.ID, 1)
 
-	agent1.UpdateDERP(11)
-	client.AssertEventuallyHasDERP(agent1.ID, 11)
+	agent.UpdateDERP(11)
+	client.AssertEventuallyHasDERP(agent.ID, 11)
 
 	client.UpdateDERP(31)
-	agent1.AssertEventuallyHasDERP(client.ID, 31)
+	agent.AssertEventuallyHasDERP(client.ID, 31)
 
-	agent1.UngracefulDisconnect(ctx)
+	agent.UngracefulDisconnect(ctx)
 	client.UngracefulDisconnect(ctx)
 
 	assertEventuallyLost(ctx, t, store, client.ID)
-	assertEventuallyLost(ctx, t, store, agent1.ID)
+	assertEventuallyLost(ctx, t, store, agent.ID)
 }
 
 func TestPGCoordinator_Unhealthy(t *testing.T) {
@@ -625,8 +625,8 @@ func TestPGCoordinator_Unhealthy(t *testing.T) {
 		err := uut.Close()
 		require.NoError(t, err)
 	}()
-	agent1 := agpltest.NewAgent(ctx, t, uut, "agent1")
-	defer agent1.Close(ctx)
+	agent := agpltest.NewAgent(ctx, t, uut, "agent")
+	defer agent.Close(ctx)
 	for i := 0; i < 3; i++ {
 		select {
 		case <-ctx.Done():
@@ -636,7 +636,7 @@ func TestPGCoordinator_Unhealthy(t *testing.T) {
 		}
 	}
 	// connected agent should be disconnected
-	agent1.AssertEventuallyResponsesClosed()
+	agent.AssertEventuallyResponsesClosed()
 
 	// new agent should immediately disconnect
 	agent2 := agpltest.NewAgent(ctx, t, uut, "agent2")
@@ -750,35 +750,35 @@ func TestPGCoordinator_NoDeleteOnClose(t *testing.T) {
 	require.NoError(t, err)
 	defer coordinator.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coordinator, "original")
-	defer agent1.Close(ctx)
-	agent1.UpdateDERP(10)
+	agent := agpltest.NewAgent(ctx, t, coordinator, "original")
+	defer agent.Close(ctx)
+	agent.UpdateDERP(10)
 
-	client := agpltest.NewClient(ctx, t, coordinator, "client", agent1.ID)
+	client := agpltest.NewClient(ctx, t, coordinator, "client", agent.ID)
 	defer client.Close(ctx)
 
 	// Simulate some traffic to generate
 	// a peer.
-	client.AssertEventuallyHasDERP(agent1.ID, 10)
+	client.AssertEventuallyHasDERP(agent.ID, 10)
 	client.UpdateDERP(11)
 
-	agent1.AssertEventuallyHasDERP(client.ID, 11)
+	agent.AssertEventuallyHasDERP(client.ID, 11)
 
-	anode := coordinator.Node(agent1.ID)
+	anode := coordinator.Node(agent.ID)
 	require.NotNil(t, anode)
 	cnode := coordinator.Node(client.ID)
 	require.NotNil(t, cnode)
 
 	err = coordinator.Close()
 	require.NoError(t, err)
-	assertEventuallyLost(ctx, t, store, agent1.ID)
+	assertEventuallyLost(ctx, t, store, agent.ID)
 	assertEventuallyLost(ctx, t, store, client.ID)
 
 	coordinator2, err := tailnet.NewPGCoord(ctx, logger, ps, store)
 	require.NoError(t, err)
 	defer coordinator2.Close()
 
-	anode = coordinator2.Node(agent1.ID)
+	anode = coordinator2.Node(agent.ID)
 	require.NotNil(t, anode)
 	assert.Equal(t, 10, anode.PreferredDERP)
 
