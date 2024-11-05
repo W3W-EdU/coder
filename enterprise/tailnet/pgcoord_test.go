@@ -417,7 +417,7 @@ func TestPGCoordinatorSingle_SendsHeartbeats(t *testing.T) {
 // TestPGCoordinatorDual_Mainline tests with 2 coordinators, one agent connected to each, and 2 clients per agent.
 //
 //	            +---------+
-//	agent ---> | coord1  | <--- client11 (coord 1, agent 1)
+//	agent1 ---> | coord1  | <--- client11 (coord 1, agent 1)
 //	            |         |
 //	            |         | <--- client12 (coord 1, agent 2)
 //	            +---------+
@@ -442,20 +442,20 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 	require.NoError(t, err)
 	defer coord2.Close()
 
-	agent := agpltest.NewAgent(ctx, t, coord1, "agent")
-	defer agent.Close(ctx)
-	t.Logf("agent=%s", agent.ID)
+	agent1 := agpltest.NewAgent(ctx, t, coord1, "agent")
+	defer agent1.Close(ctx)
+	t.Logf("agent=%s", agent1.ID)
 	agent2 := agpltest.NewAgent(ctx, t, coord2, "agent2")
 	defer agent2.Close(ctx)
 	t.Logf("agent2=%s", agent2.ID)
 
-	client11 := agpltest.NewClient(ctx, t, coord1, "client11", agent.ID)
+	client11 := agpltest.NewClient(ctx, t, coord1, "client11", agent1.ID)
 	defer client11.Close(ctx)
 	t.Logf("client11=%s", client11.ID)
 	client12 := agpltest.NewClient(ctx, t, coord1, "client12", agent2.ID)
 	defer client12.Close(ctx)
 	t.Logf("client12=%s", client12.ID)
-	client21 := agpltest.NewClient(ctx, t, coord2, "client21", agent.ID)
+	client21 := agpltest.NewClient(ctx, t, coord2, "client21", agent1.ID)
 	defer client21.Close(ctx)
 	t.Logf("client21=%s", client21.ID)
 	client22 := agpltest.NewClient(ctx, t, coord2, "client22", agent2.ID)
@@ -464,11 +464,11 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 
 	t.Logf("client11 -> Node 11")
 	client11.UpdateDERP(11)
-	agent.AssertEventuallyHasDERP(client11.ID, 11)
+	agent1.AssertEventuallyHasDERP(client11.ID, 11)
 
 	t.Logf("client21 -> Node 21")
 	client21.UpdateDERP(21)
-	agent.AssertEventuallyHasDERP(client21.ID, 21)
+	agent1.AssertEventuallyHasDERP(client21.ID, 21)
 
 	t.Logf("client22 -> Node 22")
 	client22.UpdateDERP(22)
@@ -484,9 +484,9 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 	agent2.AssertEventuallyHasDERP(client12.ID, 12)
 
 	t.Logf("agent -> Node 1")
-	agent.UpdateDERP(1)
-	client21.AssertEventuallyHasDERP(agent.ID, 1)
-	client11.AssertEventuallyHasDERP(agent.ID, 1)
+	agent1.UpdateDERP(1)
+	client21.AssertEventuallyHasDERP(agent1.ID, 1)
+	client11.AssertEventuallyHasDERP(agent1.ID, 1)
 
 	t.Logf("close coord2")
 	err = coord2.Close()
@@ -503,10 +503,10 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 	err = coord1.Close()
 	require.NoError(t, err)
 	// this closes agent, client12, client11
-	agent.AssertEventuallyResponsesClosed()
+	agent1.AssertEventuallyResponsesClosed()
 	client12.AssertEventuallyResponsesClosed()
 	client11.AssertEventuallyResponsesClosed()
-	assertEventuallyLost(ctx, t, store, agent.ID)
+	assertEventuallyLost(ctx, t, store, agent1.ID)
 	assertEventuallyLost(ctx, t, store, client11.ID)
 	assertEventuallyLost(ctx, t, store, client12.ID)
 }
@@ -516,7 +516,7 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 // or an infrastructure problem where an old workspace is not fully cleaned up before a new one started.
 //
 //	            +---------+
-//	agent ---> | coord1  |
+//	agent1 ---> | coord1  |
 //	            +---------+
 //	            +---------+
 //	agent2 ---> | coord2  |
@@ -543,42 +543,42 @@ func TestPGCoordinator_MultiCoordinatorAgent(t *testing.T) {
 	require.NoError(t, err)
 	defer coord3.Close()
 
-	agent := agpltest.NewAgent(ctx, t, coord1, "agent")
-	defer agent.Close(ctx)
+	agent1 := agpltest.NewAgent(ctx, t, coord1, "agent")
+	defer agent1.Close(ctx)
 	agent2 := agpltest.NewPeer(ctx, t, coord2, "agent2",
-		agpltest.WithID(agent.ID), agpltest.WithAuth(agpl.AgentCoordinateeAuth{ID: agent.ID}),
+		agpltest.WithID(agent1.ID), agpltest.WithAuth(agpl.AgentCoordinateeAuth{ID: agent1.ID}),
 	)
 	defer agent2.Close(ctx)
 
-	client := agpltest.NewClient(ctx, t, coord3, "client", agent.ID)
+	client := agpltest.NewClient(ctx, t, coord3, "client", agent1.ID)
 	defer client.Close(ctx)
 
 	client.UpdateDERP(3)
-	agent.AssertEventuallyHasDERP(client.ID, 3)
+	agent1.AssertEventuallyHasDERP(client.ID, 3)
 	agent2.AssertEventuallyHasDERP(client.ID, 3)
 
-	agent.UpdateDERP(1)
-	client.AssertEventuallyHasDERP(agent.ID, 1)
+	agent1.UpdateDERP(1)
+	client.AssertEventuallyHasDERP(agent1.ID, 1)
 
 	// agent2's update overrides agent because it is newer
 	agent2.UpdateDERP(2)
-	client.AssertEventuallyHasDERP(agent.ID, 2)
+	client.AssertEventuallyHasDERP(agent1.ID, 2)
 
 	// agent2 disconnects, and we should revert back to agent
 	agent2.Close(ctx)
-	client.AssertEventuallyHasDERP(agent.ID, 1)
+	client.AssertEventuallyHasDERP(agent1.ID, 1)
 
-	agent.UpdateDERP(11)
-	client.AssertEventuallyHasDERP(agent.ID, 11)
+	agent1.UpdateDERP(11)
+	client.AssertEventuallyHasDERP(agent1.ID, 11)
 
 	client.UpdateDERP(31)
-	agent.AssertEventuallyHasDERP(client.ID, 31)
+	agent1.AssertEventuallyHasDERP(client.ID, 31)
 
-	agent.UngracefulDisconnect(ctx)
+	agent1.UngracefulDisconnect(ctx)
 	client.UngracefulDisconnect(ctx)
 
 	assertEventuallyLost(ctx, t, store, client.ID)
-	assertEventuallyLost(ctx, t, store, agent.ID)
+	assertEventuallyLost(ctx, t, store, agent1.ID)
 }
 
 func TestPGCoordinator_Unhealthy(t *testing.T) {
