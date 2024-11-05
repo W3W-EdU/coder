@@ -442,9 +442,9 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 	require.NoError(t, err)
 	defer coord2.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coord1, "agent")
+	agent1 := agpltest.NewAgent(ctx, t, coord1, "agent1")
 	defer agent1.Close(ctx)
-	t.Logf("agent=%s", agent1.ID)
+	t.Logf("agent1=%s", agent1.ID)
 	agent2 := agpltest.NewAgent(ctx, t, coord2, "agent2")
 	defer agent2.Close(ctx)
 	t.Logf("agent2=%s", agent2.ID)
@@ -483,7 +483,7 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 	client12.UpdateDERP(12)
 	agent2.AssertEventuallyHasDERP(client12.ID, 12)
 
-	t.Logf("agent -> Node 1")
+	t.Logf("agent1 -> Node 1")
 	agent1.UpdateDERP(1)
 	client21.AssertEventuallyHasDERP(agent1.ID, 1)
 	client11.AssertEventuallyHasDERP(agent1.ID, 1)
@@ -502,7 +502,7 @@ func TestPGCoordinatorDual_Mainline(t *testing.T) {
 
 	err = coord1.Close()
 	require.NoError(t, err)
-	// this closes agent, client12, client11
+	// this closes agent1, client12, client11
 	agent1.AssertEventuallyResponsesClosed()
 	client12.AssertEventuallyResponsesClosed()
 	client11.AssertEventuallyResponsesClosed()
@@ -543,7 +543,7 @@ func TestPGCoordinator_MultiCoordinatorAgent(t *testing.T) {
 	require.NoError(t, err)
 	defer coord3.Close()
 
-	agent1 := agpltest.NewAgent(ctx, t, coord1, "agent")
+	agent1 := agpltest.NewAgent(ctx, t, coord1, "agent1")
 	defer agent1.Close(ctx)
 	agent2 := agpltest.NewPeer(ctx, t, coord2, "agent2",
 		agpltest.WithID(agent1.ID), agpltest.WithAuth(agpl.AgentCoordinateeAuth{ID: agent1.ID}),
@@ -560,11 +560,11 @@ func TestPGCoordinator_MultiCoordinatorAgent(t *testing.T) {
 	agent1.UpdateDERP(1)
 	client.AssertEventuallyHasDERP(agent1.ID, 1)
 
-	// agent2's update overrides agent because it is newer
+	// agent2's update overrides agent1 because it is newer
 	agent2.UpdateDERP(2)
 	client.AssertEventuallyHasDERP(agent1.ID, 2)
 
-	// agent2 disconnects, and we should revert back to agent
+	// agent2 disconnects, and we should revert back to agent1
 	agent2.Close(ctx)
 	client.AssertEventuallyHasDERP(agent1.ID, 1)
 
@@ -625,8 +625,8 @@ func TestPGCoordinator_Unhealthy(t *testing.T) {
 		err := uut.Close()
 		require.NoError(t, err)
 	}()
-	agent := agpltest.NewAgent(ctx, t, uut, "agent")
-	defer agent.Close(ctx)
+	agent1 := agpltest.NewAgent(ctx, t, uut, "agent1")
+	defer agent1.Close(ctx)
 	for i := 0; i < 3; i++ {
 		select {
 		case <-ctx.Done():
@@ -636,7 +636,7 @@ func TestPGCoordinator_Unhealthy(t *testing.T) {
 		}
 	}
 	// connected agent should be disconnected
-	agent.AssertEventuallyResponsesClosed()
+	agent1.AssertEventuallyResponsesClosed()
 
 	// new agent should immediately disconnect
 	agent2 := agpltest.NewAgent(ctx, t, uut, "agent2")
