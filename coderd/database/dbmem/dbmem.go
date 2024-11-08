@@ -8222,7 +8222,7 @@ func (q *FakeQuerier) InsertWorkspaceBuildParameters(_ context.Context, arg data
 	return nil
 }
 
-func (q *FakeQuerier) InsertWorkspaceModule(ctx context.Context, arg database.InsertWorkspaceModuleParams) (database.WorkspaceModule, error) {
+func (q *FakeQuerier) InsertWorkspaceModule(_ context.Context, arg database.InsertWorkspaceModuleParams) (database.WorkspaceModule, error) {
 	err := validateDatabaseType(arg)
 	if err != nil {
 		return database.WorkspaceModule{}, err
@@ -8231,15 +8231,7 @@ func (q *FakeQuerier) InsertWorkspaceModule(ctx context.Context, arg database.In
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
-	workspaceModule := database.WorkspaceModule{
-		ID:         arg.ID,
-		JobID:      arg.JobID,
-		Transition: arg.Transition,
-		Source:     arg.Source,
-		Version:    arg.Version,
-		Key:        arg.Key,
-		CreatedAt:  arg.CreatedAt,
-	}
+	workspaceModule := database.WorkspaceModule(arg)
 	q.workspaceModules = append(q.workspaceModules, workspaceModule)
 	return workspaceModule, nil
 }
