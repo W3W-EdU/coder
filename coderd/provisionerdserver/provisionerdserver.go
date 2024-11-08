@@ -1278,7 +1278,7 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 					slog.F("module_key", module.Key),
 					slog.F("transition", transition))
 
-				err = InsertWorkspaceModule(ctx, s.Database, jobID, transition, module)
+				err = InsertWorkspaceModule(ctx, s.Database, jobID, transition, module, telemetrySnapshot)
 				if err != nil {
 					return nil, xerrors.Errorf("insert module: %w", err)
 				}
@@ -1490,7 +1490,7 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 				}
 			}
 			for _, module := range jobType.WorkspaceBuild.Modules {
-				err = InsertWorkspaceModule(ctx, db, job.ID, workspaceBuild.Transition, module)
+				err = InsertWorkspaceModule(ctx, db, job.ID, workspaceBuild.Transition, module, telemetrySnapshot)
 				if err != nil {
 					return xerrors.Errorf("insert provisioner job module: %w", err)
 				}
@@ -1682,7 +1682,7 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 				slog.F("module_source", module.Source),
 			)
 
-			err = InsertWorkspaceModule(ctx, s.Database, jobID, database.WorkspaceTransitionStart, module)
+			err = InsertWorkspaceModule(ctx, s.Database, jobID, database.WorkspaceTransitionStart, module, telemetrySnapshot)
 			if err != nil {
 				return nil, xerrors.Errorf("insert module: %w", err)
 			}
@@ -1768,8 +1768,8 @@ func (s *server) startTrace(ctx context.Context, name string, opts ...trace.Span
 	))...)
 }
 
-func InsertWorkspaceModule(ctx context.Context, db database.Store, jobID uuid.UUID, transition database.WorkspaceTransition, protoModule *sdkproto.Module) error {
-	_, err := db.InsertWorkspaceModule(ctx, database.InsertWorkspaceModuleParams{
+func InsertWorkspaceModule(ctx context.Context, db database.Store, jobID uuid.UUID, transition database.WorkspaceTransition, protoModule *sdkproto.Module, snapshot *telemetry.Snapshot) error {
+	module, err := db.InsertWorkspaceModule(ctx, database.InsertWorkspaceModuleParams{
 		ID:         uuid.New(),
 		CreatedAt:  dbtime.Now(),
 		JobID:      jobID,
@@ -1781,6 +1781,7 @@ func InsertWorkspaceModule(ctx context.Context, db database.Store, jobID uuid.UU
 	if err != nil {
 		return xerrors.Errorf("insert provisioner job module %q: %w", protoModule.Source, err)
 	}
+	snapshot.WorkspaceModules = append(snapshot.WorkspaceModules, telemetry.ConvertWorkspaceModule(module))
 	return nil
 }
 
