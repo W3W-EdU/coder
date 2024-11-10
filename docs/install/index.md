@@ -7,7 +7,7 @@ We support two release channels: mainline and stable - read the
 
 There are several ways to install Coder. For production deployments with 50+
 users, we recommend [installing on Kubernetes](./kubernetes.md). Otherwise, you
-can install Coder on your local machine or on a VM:
+can install Coder on your local machine or on /VM/:
 
 <div class="tabs">
 
